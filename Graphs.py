@@ -5,63 +5,87 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import random
 import time
+import socket
+import threading
 
-class RollingGraph:
-    def __init__(self, master, max_points=300, title="Rolling Graph", ylabel="Temperature (°C)"):
-        """Initialize the rolling graph."""
-        self.master = master
-        self.max_points = max_points
-
-        # Rolling data storage
-        self.x_data = deque(maxlen=max_points)  # Time values
-        self.y_data = deque(maxlen=max_points)  # Temperature values
-
-        # Initialize with some data
-        current_time = time.time()
-        for i in range(max_points):
-            self.x_data.append(current_time + i - max_points)  # Past timestamps
-            self.y_data.append(random.uniform(20, 30))  # Simulated temperatures
-
-        # Create Matplotlib figure
-        self.figure = Figure(figsize=(4, 2), dpi=100)
-        self.ax = self.figure.add_subplot(111)
-        self.line, = self.ax.plot(self.x_data, self.y_data, color="blue", label="Temperature")
-        self.ax.set_title(title)
-        self.ax.set_xlabel("Time (s)")
-        self.ax.set_ylabel(ylabel)
+class Graph:
+    def __init__(self, graph_id, data_type, initial_data):
+        self.graph_id = graph_id
+        self.data_type = data_type
+        self.data = initial_data
+        self.canvas = None
+        self.canvas_widget = None
+        # might need a state so i can knwo if i need to toggle on or off
+        
+        # Create the figure and axis
+        self.figure, self.ax = plt.subplots()
+        self.line, = self.ax.plot([], [], label=f"Graph {graph_id}")
         self.ax.legend()
-
-        self.canvas = FigureCanvasTkAgg(self.figure, master=self.master)
-
-        # Start updating the graph
-        self.update_graph()
-
-    def update_graph(self):
-        """Update the graph with new data."""
-        current_time = time.time()
-        # figure out how to get this be the data from the micro controller
-        new_temperature = random.uniform(20, 30)  # Simulate temperature
-
-        # Append new data
-        self.x_data.append(current_time)
-        self.y_data.append(new_temperature)
-
-        # Update the plot
-        self.line.set_data(self.x_data, self.y_data)
-        self.ax.relim()
-        self.ax.autoscale_view()
-
-        # Redraw the canvas
+        
+        # Configure the graph appearance
+        self.ax.set_title(f"Graph {graph_id} - {data_type}")
+        self.ax.set_xlabel("X-axis")
+        self.ax.set_ylabel("Y-axis")
+    
+    def update_data(self, new_data):
+        self.data.append(new_data)  # Update the graph's data
+        self.line.set_xdata(range(len(self.data)))  # Update the x-axis
+        self.line.set_ydata(self.data)  # Update the y-axis
+        self.ax.relim()  # Recompute limits
+        self.ax.autoscale_view()  # Autoscale the view
+    
+    def render(self, parent_frame):
+        # Render the graph in the provided parent frame
+        self.canvas = FigureCanvasTkAgg(self.figure, master=parent_frame)
+        self.canvas_widget = self.canvas.get_tk_widget()
+        self.canvas_widget.pack(fill='both', expand=True)
         self.canvas.draw()
-
-        # Schedule the next update
-        self.master.after(100, self.update_graph)  # Update every 100 ms
-
-
-    def show_graph(self):
-        self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
+        
+    def hide(self):
+        self.canvas_widget.pack_forget()
     
-    def hide_graph(self):
-        self.canvas.get_tk_widget().pack_forget() 
-
+class GraphManager:
+    def __init__(self, parent_frame):
+        self.graphs = {}  # Store graphs by ID
+        self.parent_frame = parent_frame
     
+    def update_graph(self, graph_id, data_type, new_data):
+        if graph_id not in self.graphs:
+            # Create a new graph if it doesn't exist
+            self.graphs[graph_id] = Graph(graph_id, data_type, [])
+            self.graphs[graph_id].render(self.parent_frame)  # Render in the frame       
+        # Update the graph with new data
+        self.graphs[graph_id].update_data(new_data)
+        
+    def hide_graph(self, graph_id):
+        self.graphs[graph_id].hide()
+        
+    def show_graph(self, graph_id,):
+        self.graphs[graph_id].render(self.parent_frame)
+        
+    def get_graphs(self):
+        return self.graphs
+        
+def listen_to_socket(graph_manager):
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.connect(('localhost', 8001))
+    conn, addr = server_socket.accept()
+    while True:
+        try:
+            data = conn.recv(1024).decode()
+            if not data:
+                break
+            
+            if len(data) == 1:
+                graph_manager.update_graph("pressure", "pressure", data)
+            else:
+                split_data = data.split(",")
+                graph_id = int(split_data[0])
+                data_type = split_data[1]
+                new_data = float(split_data[2])
+                graph_manager.update_graph(graph_id, data_type, new_data)
+        except Exception as e:
+            print(f"Error: {e}")
+            break
+    
+    conn.close()
