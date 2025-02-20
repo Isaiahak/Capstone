@@ -11,9 +11,9 @@ class GraphApp:
 
         # Initialize data
         self.graph_types = {
-            "temperature": ["Temp 1", "Temp 2", "Temp 3", "Temp 4"],
-            "voltage": ["Volt 1", "Volt 2", "Volt 3", "Volt 4"],
-            "pressure": ["Press 1"],
+            "temperature": ["t1", "t2", "t3", "t4"],
+            "voltage": ["v1", "v2", "v3", "v4"],
+            "pressure": ["p1"],
         }
 
         #graph type button frame
@@ -32,6 +32,7 @@ class GraphApp:
     
         
         self.type_buttons = {}
+        
         #generate graph type buttons
         for graph_type in self.graph_types.keys():
             btn = tk.Button(

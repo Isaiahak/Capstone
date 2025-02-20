@@ -43,11 +43,7 @@ def start_server():
     while True:
         client_socket, address = server_socket.accept()
         #for now we are not getting the values from the micro controller but i should in the future
-        incoming_data = "1," + str(random.randint(30,70)) + "," + str(random.randint(0,3)) + ", " 
-        + "2," + str(random.randint(30,70)) + "," + str(random.randint(0,3)) + ", "
-        + "3," + str(random.randint(30,70))+ "," + str(random.randint(0,3)) + ", "
-        + "4," + str(random.randint(30,70)) + "," + str(random.randint(0,3)) + ", "
-        + "p," + str(random.randint(50,100))
+        
         parsed_data = parseData(incoming_data)
         for data in parsed_data:
             client_socket.send(data.encode())
