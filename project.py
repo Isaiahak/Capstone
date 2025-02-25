@@ -42,7 +42,10 @@ class Validator(threading.Thread):
     def run(self):
         while(self.is_running):
             incoming_data = "t1," + str(random.randint(30,70)) + ",v1," + str(random.randint(0,3)) + ",t2," + str(random.randint(30,70)) + ",v2," + str(random.randint(0,3)) + ",t3," + str(random.randint(30,70))+ ",v3," + str(random.randint(0,3)) + ",t4," + str(random.randint(30,70)) + ",v4," + str(random.randint(0,3)) + ",p," + str(random.randint(50,100))  
-            self.validate_data(incoming_data) 
+            self.validate_data(incoming_data)
+            time.sleep(1000)
+        print("thread ended")
+
     # added pass to remove pressure sensor
     def validate_data(self,data):
         data_split = data.split(',')
@@ -163,7 +166,9 @@ class Monitor_thread(threading.Thread):
                             self.error_counter = self.error_counter + 1
                         else:
                             self.error_counter = 0 
-                            self.last_error_type = current_error_type      
+                            self.last_error_type = current_error_type
+            time.sleep(1000)
+        print("thread ended")
                             
     def end_thread(self):
         self.is_running = False               
@@ -172,25 +177,25 @@ class UI:
     
     def __init__(self, root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue):
         self.root = root
-        self.main_frame = tk.Frame(root, bg="white", width=1800,height=1200)
+        self.main_frame = tk.Frame(root, bg="gray", width=1800,height=1200)
         self.main_frame.pack()
         
         # frame for all buttons
-        self.buttons_frame = tk.Frame(self.main_frame, width=1600, height=100)
-        self.buttons_frame.pack()
+        self.buttons_frame = tk.Frame(self.main_frame, width=1600, height=300)
+        self.buttons_frame.pack(side=tk.TOP)
         
         # frame for type buttons
         self.button_type_frame = tk.Frame(self.buttons_frame, width=1600, height=100)
-        self.button_type_frame.pack()
+        self.button_type_frame.pack(side=tk.TOP, fill=tk.X, expand=1)
         
         #create graph selection button frame
-        self.temp_button_frame = tk.Frame(self.button_type_frame, bg="blue", width=600, height=100)
-        self.volt_button_frame = tk.Frame(self.button_type_frame, bg="blue", width=600, height=100)
-        self.press_button_frame = tk.Frame(self.button_type_frame, bg="blue", width=600, height=100)
+        self.temp_button_frame = tk.Frame(self.button_type_frame, bg="darkgray", width=600, height=100)
+        self.volt_button_frame = tk.Frame(self.button_type_frame, bg="darkgray", width=600, height=100)
+        self.press_button_frame = tk.Frame(self.button_type_frame, bg="darkgray", width=600, height=100)
         
          #frame for graph buttons
         self.graph_button_frame = tk.Frame(self.buttons_frame)
-        self.graph_button_frame.pack()
+        self.graph_button_frame.pack(side=tk.BOTTOM)
         
         #frame for graphs
         self.graph_frame = tk.Frame(self.main_frame)
@@ -218,7 +223,7 @@ class UI:
 
         #frame for notications
         self.notification_frame = tk.Frame(self.main_frame, width=1600, height=100)
-        self.notification_frame.pack()
+        self.notification_frame.pack(side=tk.BOTTOM)
 
         #Structure which hold the graphs
         self.graph_map = {"temp1": self.temp1_graph_frame, "temp2": self.temp2_graph_frame, "temp": self.temp3_graph_frame, "temp4": self.temp4_graph_frame, "volt1": self.volt1_graph_frame, "volt2": self.volt2_graph_frame, "volt3": self.volt3_graph_frame, "volt4": self.volt4_graph_frame, "pressure": self.pressure_graph_frame}                    
@@ -249,7 +254,7 @@ class UI:
                 command=lambda: self.show_graph_type_buttons(graph_type),
                 bg="lightgray",
             )
-            btn.pack(side="left", pady=10, padx=10, fill="x")
+            btn.pack(side="left", pady=10, padx=10)
             self.type_buttons[graph_type] = btn 
         
         
@@ -285,7 +290,7 @@ class UI:
     def show_graph_buttons(self,graph_type):
         if(self.graph_map[graph_type].get_state() == False):
             self.graph_map[graph_type].set_state(True)
-            self.graph_map[graph_type].pack() 
+            self.graph_map[graph_type].pack(side=tk.LEFTi) 
         else:
             self.graph_map[graph_type].set_state(False)
             self.graph_map[graph_type].pack_forget()
@@ -300,8 +305,9 @@ class UI:
             if graph_t != graph_type:
                 # i need to go through each graph of the type and turn them off
                 for g in self.graph_types_map[graph_t]:
-                    g.pack_forget()                                
-        self.graph_type_to_frame[graph_type].pack()
+                    g.pack_forget()
+        current_frame = self.graph_type_to_frame[graph_type]                                 
+        current_frame.pack(side=tk.BOTTOM)
 
     def display_notification(self,string):
         # figure out how to put a message in the notification frame
@@ -354,7 +360,7 @@ class Graph_Frame(tk.Frame):
 #application setup           
 if __name__ == "__main__":
     b1_temp_thread = Monitor_thread(battery_1_temp_queue, temp1_graph_queue, "temperature", 70,30)
-    b1_temp_thread.start()
+    b1_temp_thread.start()   
     print("b1 temp thread started")
     b2_temp_thread = Monitor_thread(battery_2_temp_queue, temp2_graph_queue, "temperature", 70,30)
     b2_temp_thread.start()
@@ -392,20 +398,30 @@ if __name__ == "__main__":
         b3_temp_thread.end_thread()
         b4_temp_thread.end_thread()
         b1_volt_thread.end_thread()
-        b2_volt_thread.end_thread()
+        b2_volt_thread.end_thread() 
         b3_volt_thread.end_thread()
         b4_volt_thread.end_thread()
+        validator_thread.end_thread()
         #pressure_thread.end_thread()
+        root.quit()
+        root.destroy()
         
     root = tk.Tk()
     root.title("Battery Monitor")
-    root.grid_rowconfigure(0, weight=0)  # No resizing
-    root.grid_columnconfigure(0, weight=0)
     root.geometry("1600x1200")  
     root.resizable(False, False) 
     app = UI(root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue)
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
     print("started GUI")
+    b1_temp_thread.join()
+    b2_temp_thread.join()
+    b3_temp_thread.join()
+    b4_temp_thread.join()
+    b1_volt_thread.join()
+    b2_volt_thread.join()
+    b3_volt_thread.join()
+    b4_volt_thread.join()
     
-    
+
+    validator_thread.join()
