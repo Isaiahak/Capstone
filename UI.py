@@ -6,12 +6,21 @@ import os
 matplotlib.use('TkAgg')
 class UI:
     
-    def __init__(self, root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue, notification_queue):
+    def __init__(self, root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue, notification_queue, ejection_time, monitor_length, error_length):
         self.is_running = True
+        self.monitor_length = monitor_length
+        self.error_length = error_length
+        self.ejection_time = ejection_time
         self.root = root
         self.main_frame = tk.Frame(root, bg="gray", width=1200,height=1000)
         self.main_frame.pack(fill=tk.BOTH)
         self.notification_queue = notification_queue
+
+        # setting name to setting attribute map
+        self.setting_map = {"monitor_length" : self.monitor_length,
+                            "error_length" : self.error_length,
+                            "ejection_time" : self.ejection_time}
+
         
         # frame for all buttons
         self.buttons_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=100)
@@ -35,6 +44,18 @@ class UI:
         
         self.text_frame = tk.Text(self.notification_frame, bg="gray", height=5, width=50)
 
+        # frame for settings 
+        self.setting_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=1000)
+        self.monitor_length_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
+        self.monitor_length_value = tk.Text(self.monitor_length_frame).pack(side="left")
+        tk.Button(self.monitor_length_frame, text="monitor length",command= lambda s = "monitor length", text = self.monitor_length_value: self.change_settings(s, text), bg="lightgray").pack(side="left",pady=10, padx=50)
+        self.error_length_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
+        self.error_length_value = tk.Text(self.error_length_frame).pack(side="left")
+        tk.Button(self.error_length_frame, text="error length",command= lambda s = "error length", text = self.error_length_value: self.change_settings(s, text), bg="lightgray").pack(side="left",pady=10, padx=50)
+        self.ejection_time_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
+        self.ejection_time_value = tk.Text(self.ejection_time_frame).pack(side="left")
+        tk.Button(self.ejection_time_frame, text="ejection time",command= lambda s = "ejection time", text = self.ejection_time_value: self.change_settings(s, text), bg="lightgray").pack(side="left",pady=10, padx=50)
+        
         # frame for type buttons
         self.button_type_frame = tk.Frame(self.buttons_frame, bg="gray", width=1200, height=50)
         self.button_type_frame.pack(side=tk.TOP)
@@ -90,6 +111,7 @@ class UI:
                                 self.pressure_graph_frame2 : len(self.pressure_graph_frame2.winfo_children()), self.volt_graph_frame2 : len(self.volt_graph_frame2.winfo_children()), self.temp_graph_frame2 : len(self.temp_graph_frame2.winfo_children())}
         
         #generates a button for each graph type
+        
         for graph_type in self.graph_type_to_frame.keys():
             tk.Button(
                 self.button_type_frame,
@@ -98,6 +120,7 @@ class UI:
                 bg="lightgray",
             ).pack(side="left",pady=10, padx=50)
         tk.Button(self.button_type_frame, text="alerts",command= lambda : self.show_notification_frame(), bg="lightgray").pack(side="left",pady=10, padx=50)
+        tk.Button(self.button_type_frame, text="settings",command= lambda : self.show_settings_frame(), bg="lightgray").pack(side="left",pady=10, padx=50)
 
         #generates a button for each graph
         for graph in self.graph_map.keys():
@@ -123,7 +146,6 @@ class UI:
         tk.Button(self.notification_button_frame, text="notification history", command=lambda type="history": self.show_specific_notification_type(type), width=40,
                 height=5, bg="lightgray").pack(side="left",pady=10, padx=10)
         
-
     def update_graph(self):
         self.volt1_graph_frame.checkQueue()
         self.volt2_graph_frame.checkQueue()
@@ -162,10 +184,11 @@ class UI:
         else:
             self.graph_map[graph].set_state(False)
             graph_frame.pack_forget()
-            self.root.update()
+            
 
     def show_graph_type_buttons(self,graph_type):
         self.notification_frame.pack_forget()
+        self.setting_frame.pack_forget()
         self.graph_button_frame.pack(side=tk.TOP, fill=tk.X)
         self.graph_frame.pack(side=tk.TOP, fill=tk.X)
         for frame in self.graph_type_to_frame.values():
@@ -201,7 +224,27 @@ class UI:
     def show_notification_frame(self):
         self.graph_button_frame.pack_forget()
         self.graph_frame.pack_forget()
-        self.notification_frame.pack()
+        self.setting_frame.pack_forget()
+        self.notification_frame.pack(side=tk.TOP, fill=tk.X)
+
+    def show_settings_frame(self):
+        self.graph_button_frame.pack_forget()
+        self.graph_frame.pack_forget()
+        self.notification_frame.pack_forget()
+        self.setting_frame.pack(side=tk.TOP, fill=tk.X)
+
+    def change_settings(self, setting, textbox):
+        if textbox.get("1.0",tk.END):
+            value = textbox.get("1.0",tk.END)
+        if(setting == "error_length"):
+            if (   50  < value  < 400 ):
+                self.setting_map[setting] = value
+        elif( setting == "monitor_length"):
+            if ( 500 < value < 2000):
+                self.setting_map[setting] = value
+        elif(setting == "ejection_time"):
+            if (300 < value < 900):
+                self.setting_map[setting] = value
 
     def end_process(self):
         self.is_running = False
