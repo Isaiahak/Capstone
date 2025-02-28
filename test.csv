@@ -1,2 +1,2 @@
-sensor_state,safety_state,value_state
-valid,,unsafe
+safety_state,value_state
+None,unsafe

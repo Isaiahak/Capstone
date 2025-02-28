@@ -10,13 +10,12 @@ import csv
 
 class Monitor_thread(threading.Thread):
     
-    def __init__(self, input_queue, graph_queue, notification_queue, datatype, datatype_max, datatype_min, monitor_id, timer=0.5, safety_state=None, sensor_state="valid", value_state="safe"):
+    def __init__(self, input_queue, graph_queue, notification_queue, datatype, datatype_max, datatype_min, monitor_id, timer=0.5, safety_state=None, value_state="safe"):
         super().__init__()
         self.queue = input_queue
         self.monitor_id = monitor_id
         self.monitor_values = []
         self.error_values = []
-        self.sensor_state = sensor_state
         self.sensor_datatype = datatype
         self.datatype_max = datatype_max
         self.datatype_min = datatype_min
@@ -39,7 +38,7 @@ class Monitor_thread(threading.Thread):
     def run(self):
         while(self.is_running == True):
             if not self.queue.empty():
-                self.value_anaylsis()        
+                self.value_analysis()        
             time.sleep(self.timer)
             
     def value_analysis(self):
@@ -49,6 +48,7 @@ class Monitor_thread(threading.Thread):
             # No longer need to monitor sensor
             self.end_thread()
             pass
+        
         #maintains the monitor value length of 1000 and removes old monitor values from the error values list
         if(len(self.monitor_values) > 999):
             value_to_be_removed = self.monitor_values.pop(0)
@@ -60,7 +60,7 @@ class Monitor_thread(threading.Thread):
             self.safe_flag = True
             # turn off mosfet
             self.notification = self.monitor_id +" mostfet turned off : Time = " + datetime.now().isoformat()
-            self.notification_queue.put(Notifications(self.notification), "mosfet")
+            self.notification_queue.put(Notifications(self.notification, "mosfet"))
             self.safety_state = None
             self.add_notification()
             self.update_sensor_states()
@@ -86,13 +86,13 @@ class Monitor_thread(threading.Thread):
                 self.graph_queue.put(np.nan)
                 self.current_error_type = "invalid"
             # if value recieved from mc is below safe conditions
-            if value < self.datatype_min:
+            elif value < self.datatype_min:
                 self.error_values.append((value,"under"))
                 self.monitor_values.append(value)
                 self.current_error_type = "under"
                 self.graph_queue.put(value)
             # if value recieved from mc is over safe conditions    
-            if value > self.datatype_max:
+            else:
                 self.error_values.append((value,"over"))
                 self.monitor_values.append(value)
                 self.current_error_type = "over"
@@ -109,13 +109,13 @@ class Monitor_thread(threading.Thread):
             if float(self.error_counter / len(self.error_values)) >= 0.80 and  len(self.error_values) > 180:    
                 if self.safety_state == None:
                     if (self.current_error_type == "invalid"):
-                        self.value_state = "invalid"
+                        self.value_state = "unsafe"
                         self.update_sensor_states()
                     else:
                         self.safety_state = "mosfet"
                         # turn on mosfet
                         self.notification = self.monitor_id +" mosfet triggered : Time = " + datetime.now().isoformat()
-                        self.notification_queue.put(Notifications(self.notification), "mosfet")
+                        self.notification_queue.put(Notifications(self.notification, "mosfet"))
                         self.ejection_timer = time.time()
                         self.ejection_timer_notification_counter = 0 
                         self.add_notification()
@@ -126,13 +126,13 @@ class Monitor_thread(threading.Thread):
                         if(self.ejection_timer_notification_counter == 120):
                         #notify UI with the time spend in the error state
                             self.notification = self.monitor_id + " ejection will commence in " + str(600 - (time.time() - self.ejection_timer)) + " : Time = " + datetime.now().isoformat()
-                            self.notification_queue.put(Notifications(self.notification),"ejection")
+                            self.notification_queue.put(Notifications(self.notification,"ejection"))
                             self.ejection_timer_notification_counter = 0
                             self.add_notification()
                     if ((time.time() - self.ejection_timer) >= 600):
                         #eject
                         self.notification = self.monitor_id +" eject triggered : Time = " + datetime.now().isoformat()
-                        self.notification_queue.put(Notifications(self.notification), "ejection")
+                        self.notification_queue.put(Notifications(self.notification, "ejection"))
                         # only if we eject set state to eject
                         self.safety_state = "eject"
                         self.add_notification()
@@ -142,6 +142,8 @@ class Monitor_thread(threading.Thread):
                     self.last_error_type = self.current_error_type
                 if self.last_error_type == self.current_error_type:
                     self.error_counter = self.error_counter + 1
+                elif self.last_error_type == "over" and self.current_error_type == "under" or self.last_error_type == "under" and self.current_error_type == "over":
+                    self.error_counter = self.error_counter + 1
                 else:
                     self.error_counter = 0 
                     self.last_error_type = self.current_error_type                   
@@ -150,8 +152,7 @@ class Monitor_thread(threading.Thread):
         self.is_running = False
 
     def update_sensor_states(self):
-        data = {"sensor_state": self.sensor_state,
-                "safety_state" : self.safety_state,
+        data = {"safety_state" : self.safety_state,
                 "value_state" : self.value_state}
         file_path = str(self.monitor_id + ".csv")
         with open(file_path, mode='r') as file:
@@ -168,7 +169,7 @@ class Monitor_thread(threading.Thread):
     def add_notification(self):
         current_time = datetime.now().isoformat()
 
-        with open("notification_log.csv", mode="a", newline=' ') as file:
+        with open("notification_log.csv", mode="a", newline='') as file:
             csv_writer = csv.writer(file)
             csv_writer.writerow([self.monitor_id,self.notification,current_time])
 
