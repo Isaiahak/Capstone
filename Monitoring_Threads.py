@@ -2,7 +2,7 @@ import threading
 import time 
 import numpy as np
 import matplotlib
-import Notifications as Notifications
+from Notifications import Notifications
 from datetime import datetime
 matplotlib.use('TkAgg')
 import csv
@@ -42,7 +42,7 @@ class Monitor_thread(threading.Thread):
                 self.value_anaylsis()        
             time.sleep(self.timer)
             
-    def value_anaylsis(self):
+    def value_analysis(self):
         sensor_data = self.queue.get()
         value = float(sensor_data[2])
         if self.safety_state == "eject":
@@ -59,8 +59,8 @@ class Monitor_thread(threading.Thread):
         if (self.value_state == "safe" and self.safe_flag == False):
             self.safe_flag = True
             # turn off mosfet
-            self.notification = self.monitor_id +" mostfet turned off : Time = " + datetime.now().isoformat(), "mosfet"
-            self.notification_queue.put(Notifications(self.notification))
+            self.notification = self.monitor_id +" mostfet turned off : Time = " + datetime.now().isoformat()
+            self.notification_queue.put(Notifications(self.notification), "mosfet")
             self.safety_state = None
             self.add_notification()
             self.update_sensor_states()
@@ -114,8 +114,8 @@ class Monitor_thread(threading.Thread):
                     else:
                         self.safety_state = "mosfet"
                         # turn on mosfet
-                        self.notification = self.monitor_id +" mosfet triggered : Time = " + datetime.now().isoformat(), "mosfet"
-                        self.notification_queue.put(Notifications(self.notification))
+                        self.notification = self.monitor_id +" mosfet triggered : Time = " + datetime.now().isoformat()
+                        self.notification_queue.put(Notifications(self.notification), "mosfet")
                         self.ejection_timer = time.time()
                         self.ejection_timer_notification_counter = 0 
                         self.add_notification()
@@ -125,14 +125,14 @@ class Monitor_thread(threading.Thread):
                         self.ejection_timer_notification_counter = self.ejection_timer_notification_counter + 1
                         if(self.ejection_timer_notification_counter == 120):
                         #notify UI with the time spend in the error state
-                            self.notification = self.monitor_id + " ejection will commence in " + str(600 - (time.time() - self.ejection_timer)) + " : Time = " + datetime.now().isoformat(),"ejection"
-                            self.notification_queue.put(Notifications(self.notification))
+                            self.notification = self.monitor_id + " ejection will commence in " + str(600 - (time.time() - self.ejection_timer)) + " : Time = " + datetime.now().isoformat()
+                            self.notification_queue.put(Notifications(self.notification),"ejection")
                             self.ejection_timer_notification_counter = 0
                             self.add_notification()
                     if ((time.time() - self.ejection_timer) >= 600):
                         #eject
-                        self.notification = self.monitor_id +" eject triggered : Time = " + datetime.now().isoformat(), "ejection"
-                        self.notification_queue.put(Notifications(self.notification))
+                        self.notification = self.monitor_id +" eject triggered : Time = " + datetime.now().isoformat()
+                        self.notification_queue.put(Notifications(self.notification), "ejection")
                         # only if we eject set state to eject
                         self.safety_state = "eject"
                         self.add_notification()
