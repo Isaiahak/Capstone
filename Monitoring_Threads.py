@@ -10,7 +10,7 @@ import csv
 
 class Monitor_thread(threading.Thread):
     
-    def __init__(self, input_queue, graph_queue, notification_queue, datatype, datatype_max, datatype_min, monitor_id, monitor_length, error_length, ejection_time, timer=0.5, safety_state=None, value_state="safe"):
+    def __init__(self, input_queue, graph_queue, notification_queue, datatype, datatype_max, datatype_min, monitor_id, configuration, timer=0.5, safety_state=None, value_state="safe"):
         super().__init__()
         self.queue = input_queue
         self.monitor_id = monitor_id
@@ -34,9 +34,7 @@ class Monitor_thread(threading.Thread):
         self.ejection_timer_notification_counter = 0
         self.timer = timer
         self.notification = ""
-        self.monitor_length = monitor_length
-        self.error_length = error_length
-        self.ejection_time = ejection_time
+        self.configuration = configuration
         
     def run(self):
         while(self.is_running == True):
@@ -46,6 +44,8 @@ class Monitor_thread(threading.Thread):
             
     def value_analysis(self):
         sensor_data = self.queue.get()
+        monitor_length = self.configuration.get_monitor_length()
+        error_length = self.configuration.get_error_length()
         value = float(sensor_data[2])
         if self.safety_state == "eject":
             # No longer need to monitor sensor
@@ -53,7 +53,7 @@ class Monitor_thread(threading.Thread):
             pass
         
         #maintains the monitor value length of 1000 and removes old monitor values from the error values list
-        if(len(self.monitor_values) > self.monitor_length - 1):
+        if(len(self.monitor_values) > monitor_length - 1):
             value_to_be_removed = self.monitor_values.pop(0)
             if(value_to_be_removed in self.error_values):
                 self.error_values.remove(value_to_be_removed)
@@ -71,16 +71,16 @@ class Monitor_thread(threading.Thread):
         if ((self.datatype_min <= value and value <= self.datatype_max ) and sensor_data[3] != "invalid"):
             self.monitor_values.append(value)
             self.graph_queue.put(value)
-            if (self.monitor_counter < self.monitor_length):
+            if (self.monitor_counter < monitor_length):
                 self.monitor_counter  = self.monitor_counter + 1
-            if (self.monitor_counter == self.monitor_length):
+            if (self.monitor_counter == monitor_length):
                 self.value_state = "safe"
                 self.update_sensor_states()
     
         #unsafe value path               
         else:
             # maintains a list size of 200 for errors by removing oldest error value
-            if (len(self.error_values) > self.error_length - 1):
+            if (len(self.error_values) > error_length - 1):
                 self.error_values.pop(0)
             # if value recieved from mc is invalid
             if sensor_data[3] == "invalid":
@@ -107,6 +107,7 @@ class Monitor_thread(threading.Thread):
             self.error_check()
 
     def error_check(self):
+        ejection_time = self.configuration.get_ejection_time()
         if( len(self.error_values) > 0):
             # if the error counter for the error type is over 80% of the errors occured Note I might want to have a counter for each error type in the cause of a sensor malfunction where several errors are constantly thrown
             if float(self.error_counter / len(self.error_values)) >= 0.80 and  len(self.error_values) > 180:    
@@ -124,7 +125,7 @@ class Monitor_thread(threading.Thread):
                         self.add_notification()
                         self.update_sensor_states()     
                 if self.safety_state == "mosfet":
-                    if ((time.time() - self.ejection_timer) < self.ejection_time):
+                    if ((time.time() - self.ejection_timer) < ejection_time):
                         self.ejection_timer_notification_counter = self.ejection_timer_notification_counter + 1
                         if(self.ejection_timer_notification_counter == 120):
                         #notify UI with the time spend in the error state
@@ -132,7 +133,7 @@ class Monitor_thread(threading.Thread):
                             self.notification_queue.put(Notifications(self.notification,"ejection"))
                             self.ejection_timer_notification_counter = 0
                             self.add_notification()
-                    if ((time.time() - self.ejection_timer) >= self.ejection_time):
+                    if ((time.time() - self.ejection_timer) >= ejection_time):
                         #eject
                         self.notification = self.monitor_id +" eject triggered : Time = " + datetime.now().isoformat()
                         self.notification_queue.put(Notifications(self.notification, "ejection"))

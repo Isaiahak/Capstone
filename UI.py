@@ -6,22 +6,14 @@ import os
 matplotlib.use('TkAgg')
 class UI:
     
-    def __init__(self, root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue, notification_queue, ejection_time, monitor_length, error_length):
+    def __init__(self, root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue, notification_queue, configuration):
         self.is_running = True
-        self.monitor_length = monitor_length
-        self.error_length = error_length
-        self.ejection_time = ejection_time
+        self.configuration = configuration
         self.root = root
         self.main_frame = tk.Frame(root, bg="gray", width=1200,height=1000)
         self.main_frame.pack(fill=tk.BOTH)
         self.notification_queue = notification_queue
-
-        # setting name to setting attribute map
-        self.setting_map = {"monitor_length" : self.monitor_length,
-                            "error_length" : self.error_length,
-                            "ejection_time" : self.ejection_time}
-
-        
+    
         # frame for all buttons
         self.buttons_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=100)
         self.buttons_frame.pack(side=tk.TOP, fill=tk.X)
@@ -34,8 +26,7 @@ class UI:
         self.notification_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=1000)
 
         self.notification_button_frame = tk.Frame(self.notification_frame, bg="gray", width=1200, height=100)
-        self.notification_button_frame.pack(side=tk.TOP)
-
+        #self.notification_button_frame.pack(side=tk.TOP)
         self.ejection_notification_frame = tk.Frame(self.notification_frame,width=1200, height=900)
         self.mosfet_notification_frame = tk.Frame(self.notification_frame,width=1200, height=900)
         self.history_notification_frame = tk.Frame(self.notification_frame,width=1200, height=900)
@@ -46,15 +37,18 @@ class UI:
 
         # frame for settings 
         self.setting_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=1000)
-        self.monitor_length_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
+
+        self.monitor_length_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
         self.monitor_length_value = tk.Text(self.monitor_length_frame).pack(side="left")
-        tk.Button(self.monitor_length_frame, text="monitor length",command= lambda s = "monitor length", text = self.monitor_length_value: self.change_settings(s, text), bg="lightgray").pack(side="left",pady=10, padx=50)
-        self.error_length_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
+        tk.Button(self.monitor_length_frame, text="monitor length",command= lambda s = "monitor length": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
+        
+        self.error_length_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
         self.error_length_value = tk.Text(self.error_length_frame).pack(side="left")
-        tk.Button(self.error_length_frame, text="error length",command= lambda s = "error length", text = self.error_length_value: self.change_settings(s, text), bg="lightgray").pack(side="left",pady=10, padx=50)
-        self.ejection_time_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
+        tk.Button(self.error_length_frame, text="error length",command= lambda s = "error length": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
+        
+        self.ejection_time_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
         self.ejection_time_value = tk.Text(self.ejection_time_frame).pack(side="left")
-        tk.Button(self.ejection_time_frame, text="ejection time",command= lambda s = "ejection time", text = self.ejection_time_value: self.change_settings(s, text), bg="lightgray").pack(side="left",pady=10, padx=50)
+        tk.Button(self.ejection_time_frame, text="ejection time",command= lambda s = "ejection time": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
         
         # frame for type buttons
         self.button_type_frame = tk.Frame(self.buttons_frame, bg="gray", width=1200, height=50)
@@ -185,12 +179,11 @@ class UI:
             self.graph_map[graph].set_state(False)
             graph_frame.pack_forget()
             
-
     def show_graph_type_buttons(self,graph_type):
         self.notification_frame.pack_forget()
         self.setting_frame.pack_forget()
-        self.graph_button_frame.pack(side=tk.TOP, fill=tk.X)
         self.graph_frame.pack(side=tk.TOP, fill=tk.X)
+        self.graph_button_frame.pack(side=tk.TOP, fill=tk.X)
         for frame in self.graph_type_to_frame.values():
             frame.pack_forget()
         for frame in self.graph_type_to_graph_frame.values():
@@ -200,7 +193,7 @@ class UI:
         for graph in self.graph_map.values():
             graph.set_state(False)
             graph.get_frame().pack_forget()
-        self.graph_type_to_frame[graph_type].pack()
+        self.graph_type_to_frame[graph_type].pack(side=tk.TOP)
         self.graph_type_to_graph_frame[graph_type].pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)   
         self.graph_type_to_graph_frame2[graph_type].pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)   
 
@@ -222,29 +215,32 @@ class UI:
         os.startfile("notification_logs.csv")
 
     def show_notification_frame(self):
-        self.graph_button_frame.pack_forget()
         self.graph_frame.pack_forget()
+        self.graph_button_frame.pack_forget()
         self.setting_frame.pack_forget()
         self.notification_frame.pack(side=tk.TOP, fill=tk.X)
+        print("notification")
 
     def show_settings_frame(self):
-        self.graph_button_frame.pack_forget()
         self.graph_frame.pack_forget()
+        self.graph_button_frame.pack_forget()
         self.notification_frame.pack_forget()
         self.setting_frame.pack(side=tk.TOP, fill=tk.X)
+        print("settings")
 
-    def change_settings(self, setting, textbox):
-        if textbox.get("1.0",tk.END):
-            value = textbox.get("1.0",tk.END)
+    def change_settings(self, setting):
         if(setting == "error_length"):
+            value = self.error_length_value.get("1.0",tk.END)
             if (   50  < value  < 400 ):
-                self.setting_map[setting] = value
+                self.configuration.set_error_length(value)  
         elif( setting == "monitor_length"):
+            value = self.monitor_length_value.get("1.0",tk.END)
             if ( 500 < value < 2000):
-                self.setting_map[setting] = value
+                self.configuration.set_monitor_length(value)
         elif(setting == "ejection_time"):
+            value = self.ejection_time_value.get("1.0",tk.END)
             if (300 < value < 900):
-                self.setting_map[setting] = value
+                self.configuration.set_ejection_time(value)
 
     def end_process(self):
         self.is_running = False
