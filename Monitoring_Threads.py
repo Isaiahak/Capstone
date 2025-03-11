@@ -10,12 +10,13 @@ import csv
 
 class Monitor_thread(threading.Thread):
     
-    def __init__(self, input_queue, graph_queue, notification_queue, datatype, datatype_max, datatype_min, monitor_id, configuration, timer=0.5, safety_state=None, value_state="safe"):
+    def __init__(self, input_queue, graph_queue, notification_queue, datatype, datatype_max, datatype_min, monitor_id, configuration, safety_state=None, value_state="safe"):
         super().__init__()
         self.queue = input_queue
         self.monitor_id = monitor_id
         self.monitor_values = []
         self.error_values = []
+        self.consistency_values = []
         self.sensor_datatype = datatype
         self.datatype_max = datatype_max
         self.datatype_min = datatype_min
@@ -26,38 +27,52 @@ class Monitor_thread(threading.Thread):
         self.last_error_type = None
         self.current_error_type = None
         self.error_counter = 0
+        self.inconsistency_counter = 0
+        self.inconsistent_counter = 0
         self.ejection_timer = None
         self.graph_queue = graph_queue 
         self.is_running = True
         self.safe_flag = True
         self.notification_queue = notification_queue
         self.ejection_timer_notification_counter = 0
-        self.timer = timer
+        self.timer = configuration.get_timer()
         self.notification = ""
         self.configuration = configuration
+        self.prev_monitor_length = configuration.get_monitor_length()  
+        self.prev_error_length = configuration.get_error_length()
+        self.prev_ejection_time = configuration.get_ejection_time() 
+        self.prev_consistent_length = configuration.get_consistent_length()
+        self.monitor_length = self.configuration.get_monitor_length()
+        self.error_length = self.configuration.get_error_length()
+        self.consistency_length = self.configuration.get_consistency_length()
+        self.ejection_time = self.configuration.get_ejection_time()
         
     def run(self):
         while(self.is_running == True):
             if not self.queue.empty():
+                if(self.configuration.get_changed_flag()):
+                    self.value_change()
+                    self.configuration.set_changed_flag()
                 self.value_analysis()        
             time.sleep(self.timer)
             
     def value_analysis(self):
         sensor_data = self.queue.get()
-        monitor_length = self.configuration.get_monitor_length()
-        error_length = self.configuration.get_error_length()
         value = float(sensor_data[2])
         if self.safety_state == "eject":
             # No longer need to monitor sensor
             self.end_thread()
-            pass
-        
+            pass 
         #maintains the monitor value length of 1000 and removes old monitor values from the error values list
-        if(len(self.monitor_values) > monitor_length - 1):
+        if(len(self.monitor_values) > self.monitor_length - 1):
             value_to_be_removed = self.monitor_values.pop(0)
             if(value_to_be_removed in self.error_values):
                 self.error_values.remove(value_to_be_removed)
                 self.error_counter = self.error_counter - 1
+            if(value_to_be_removed in self.consistency_values):
+                self.consistency_values.remove(value_to_be_removed)
+                self.inconsistency_counter = self.inconsistency_counter -1
+
         #declares the battery being monitored in a safe state and turns mosfet back on once its been done doesnt have to occur again which is what the flag represents
         if (self.value_state == "safe" and self.safe_flag == False):
             self.safe_flag = True
@@ -67,21 +82,27 @@ class Monitor_thread(threading.Thread):
             self.safety_state = None
             self.add_notification()
             self.update_sensor_states()
+
         #safe value path
         if ((self.datatype_min <= value and value <= self.datatype_max ) and sensor_data[3] != "invalid"):
             self.monitor_values.append(value)
+            if (len(self.consistency_values) > self.consistency_length -1):
+                self.consistency_values.pop(0)
+            self.consistency_values.append(value)
             self.graph_queue.put(value)
-            if (self.monitor_counter < monitor_length):
+            if (self.monitor_counter < self.monitor_length):
                 self.monitor_counter  = self.monitor_counter + 1
-            if (self.monitor_counter == monitor_length):
+            if (self.monitor_counter == self.monitor_length):
                 self.value_state = "safe"
                 self.update_sensor_states()
-    
+            self.consistency_check()
+        
         #unsafe value path               
         else:
             # maintains a list size of 200 for errors by removing oldest error value
-            if (len(self.error_values) > error_length - 1):
+            if (len(self.error_values) > self.error_length - 1):
                 self.error_values.pop(0)
+                self.error_counter  = self.error_counter - 1
             # if value recieved from mc is invalid
             if sensor_data[3] == "invalid":
                 self.monitor_values.append(np.nan)
@@ -107,9 +128,7 @@ class Monitor_thread(threading.Thread):
             self.error_check()
 
     def error_check(self):
-        ejection_time = self.configuration.get_ejection_time()
         if( len(self.error_values) > 0):
-            # if the error counter for the error type is over 80% of the errors occured Note I might want to have a counter for each error type in the cause of a sensor malfunction where several errors are constantly thrown
             if float(self.error_counter / len(self.error_values)) >= 0.80 and  len(self.error_values) > 180:    
                 if self.safety_state == None:
                     if (self.current_error_type == "invalid"):
@@ -125,7 +144,7 @@ class Monitor_thread(threading.Thread):
                         self.add_notification()
                         self.update_sensor_states()     
                 if self.safety_state == "mosfet":
-                    if ((time.time() - self.ejection_timer) < ejection_time):
+                    if ((time.time() - self.ejection_timer) < self.ejection_time):
                         self.ejection_timer_notification_counter = self.ejection_timer_notification_counter + 1
                         if(self.ejection_timer_notification_counter == 120):
                         #notify UI with the time spend in the error state
@@ -133,7 +152,7 @@ class Monitor_thread(threading.Thread):
                             self.notification_queue.put(Notifications(self.notification,"ejection"))
                             self.ejection_timer_notification_counter = 0
                             self.add_notification()
-                    if ((time.time() - self.ejection_timer) >= ejection_time):
+                    if ((time.time() - self.ejection_timer) >= self.ejection_time):
                         #eject
                         self.notification = self.monitor_id +" eject triggered : Time = " + datetime.now().isoformat()
                         self.notification_queue.put(Notifications(self.notification, "ejection"))
@@ -152,6 +171,22 @@ class Monitor_thread(threading.Thread):
                     self.error_counter = 0 
                     self.last_error_type = self.current_error_type                   
     
+    def consistency_check(self):
+        if (len(self.consistency_values) > 1):
+            if (self.datatype == "temperature"):
+                difference = self.configuration.get_temp_diff()
+            elif (self.datatype == "voltage"):
+                difference = self.configuration.get_volt_diff()
+            if (self.consistency_values[len(self.consistency_values)] - self.consistency_values[len(self.consistency_values - 1)] > difference):
+                self.inconsistency_counter = self.inconsistency_counter + 1
+                self.inconsistent_counter = self.inconsistent_counter + 1  
+            else: 
+                self.inconsistent_counter = 0
+            if (self.inconsistent_counter == 100 or ( self.inconsistency_counter > 150 and float(self.inconsistency_counter / len(self.consistency_values)) > 0.80 )):
+                self.value_state = "unsafe"
+                self.safe_flag = False
+                self.monitor_counter = self.monitor_counter / 1.3
+
     def end_thread(self):
         self.is_running = False
 
@@ -177,5 +212,41 @@ class Monitor_thread(threading.Thread):
             csv_writer = csv.writer(file)
             csv_writer.writerow([self.monitor_id,self.notification,current_time])
 
+    def value_change(self):
+        if (self.prev_monitor_length != self.configuration.get_monitor_length()):
+            self.monitor_length = self.configuration.get_monitor_length
+            while(len(self.monitor_values) > self.monitor_length):
+                value_to_be_removed = self.monitor_values.pop(0)
+                self.monitor_counter = self.monitor_counter - 1
+                if(value_to_be_removed in self.error_values):
+                    self.error_values.remove(value_to_be_removed)
+                    self.error_counter = self.error_counter - 1
+                if(value_to_be_removed in self.consistency_values):
+                    self.consistency_values.remove(value_to_be_removed)
+                    self.inconsistency_counter = self.inconsistency_counter -1   
+            self.prev_monitor_length = self.monitor_length
+
+        if (self.prev_error_length != self.configuration.get_error_length()):
+            self.error_length = self.configuration.get_error_length()
+            while(len(self.error_values) > self.error_length):
+                self.error_values.pop(0)
+                self.error_counter = self.error_counter - 1  
+            self.prev_error_length = self.error_length
+
+        if (self.prev_consistent_length != self.configuration.get_consistent_length()):
+            self.consistency_length = self.configuration.get_consistent_length()
+            while(len(self.consistency_values) > self.consistency_length):
+                self.consistency_values.pop(0)
+                self.inconsistency_counter = self.inconsistency_counter - 1
+            self.prev_consistent_length = self.consistency_length
+
+        if (self.prev_ejection_time != self.configuration.get_ejection_time()):
+            self.ejection_time = self.configuration.get_ejection_time()
+            if (self.prev_ejection_time > self.ejection_time):
+                if (self.ejection_time < self.ejection_timer):
+                    self.ejection_timer = self.ejection_time - int(self.ejection_time * 0.3)
+            self.prev_ejection_time = self.ejection_time
+       
+        
 
 
