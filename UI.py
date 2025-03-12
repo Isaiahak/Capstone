@@ -3,6 +3,7 @@ import time
 import tkinter as tk
 import matplotlib
 import os
+import inspect
 matplotlib.use('TkAgg')
 class UI:
     
@@ -13,7 +14,11 @@ class UI:
         self.main_frame = tk.Frame(root, bg="gray", width=1200,height=1000)
         self.main_frame.pack(fill=tk.BOTH)
         self.notification_queue = notification_queue
-    
+        self.target = self.configuration
+        self.frames = {}
+        self.entries = {}
+        self.attribute_methods = self._discover_attribute_methods()
+      
         # frame for all buttons
         self.buttons_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=100)
         self.buttons_frame.pack(side=tk.TOP, fill=tk.X)
@@ -24,20 +29,25 @@ class UI:
         
         #frame for notications frames
         self.notification_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=1000)
-
         self.notification_button_frame = tk.Frame(self.notification_frame, bg="gray", width=1200, height=100)
-        #self.notification_button_frame.pack(side=tk.TOP)
+        self.notification_button_frame.pack(side=tk.TOP)
+        
         self.ejection_notification_frame = tk.Frame(self.notification_frame,width=1200, height=900)
         self.mosfet_notification_frame = tk.Frame(self.notification_frame,width=1200, height=900)
         self.history_notification_frame = tk.Frame(self.notification_frame,width=1200, height=900)
         tk.Button(self.history_notification_frame, text="get history", command=lambda : self.get_history(), width=40,
                 height=5, bg="lightgray").pack(side="left",pady=10, padx=10)
-        
         self.text_frame = tk.Text(self.notification_frame, bg="gray", height=5, width=50)
 
         # frame for settings 
         self.setting_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=1000)
-
+        
+        self.attributes = {attr: getattr(self.configuration, attr) 
+                          for attr in dir(self.configuration) 
+                          if not attr.startswith('_') and not callable(getattr(self.configuration, attr)) and not attr == "changed_value_flag"}
+        
+        self.create_frames()
+        '''
         self.monitor_length_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
         self.monitor_length_value = tk.Text(self.monitor_length_frame).pack(side="left")
         tk.Button(self.monitor_length_frame, text="monitor length",command= lambda s = "monitor length": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
@@ -49,7 +59,7 @@ class UI:
         self.ejection_time_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
         self.ejection_time_value = tk.Text(self.ejection_time_frame).pack(side="left")
         tk.Button(self.ejection_time_frame, text="ejection time",command= lambda s = "ejection time": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
-        
+        '''
         # frame for type buttons
         self.button_type_frame = tk.Frame(self.buttons_frame, bg="gray", width=1200, height=50)
         self.button_type_frame.pack(side=tk.TOP)
@@ -130,8 +140,7 @@ class UI:
                 command=lambda  g = graph: self.show_graph_buttons(g),
                 bg="lightgray",
             ).pack(side="left",pady=10, padx=50)        
-        self.update_graph()
-
+        
         #notification buttons
         tk.Button(self.notification_button_frame, text="mosfet", command=lambda type="mosfet": self.show_specific_notification_type(type), width=40,
                 height=5, bg="lightgray").pack(side="left",pady=10, padx=50)
@@ -139,6 +148,31 @@ class UI:
                 height=5, bg="lightgray").pack(side="left",pady=10, padx=10)
         tk.Button(self.notification_button_frame, text="notification history", command=lambda type="history": self.show_specific_notification_type(type), width=40,
                 height=5, bg="lightgray").pack(side="left",pady=10, padx=10)
+        
+        self.update_graph()
+    
+    def _discover_attribute_methods(self):
+        """Find all getter/setter method pairs in the target class"""
+        attribute_methods = {}
+        
+        # Get all methods of the target class
+        methods = inspect.getmembers(self.target, predicate=inspect.ismethod)
+        
+        # Find getter methods (get_*, is_*, etc.) and their corresponding setters
+        for name, method in methods:
+            # Common getter patterns
+            if name.startswith('get_'):
+                attribute_name = name[4:]  # Remove 'get_' prefix
+                setter_name = 'set_' + attribute_name
+                
+                # Check if a corresponding setter exists
+                if hasattr(self.target, setter_name):
+                    attribute_methods[attribute_name] = {
+                        'getter': name,
+                        'setter': setter_name,
+                        'current_value': getattr(self.target, name)()
+                    }
+        return attribute_methods
         
     def update_graph(self):
         self.volt1_graph_frame.checkQueue()
@@ -194,8 +228,8 @@ class UI:
             graph.set_state(False)
             graph.get_frame().pack_forget()
         self.graph_type_to_frame[graph_type].pack(side=tk.TOP)
-        self.graph_type_to_graph_frame[graph_type].pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)   
-        self.graph_type_to_graph_frame2[graph_type].pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)   
+        self.graph_type_to_graph_frame[graph_type].pack(side=tk.TOP, fill=tk.BOTH, expand=True)   
+        self.graph_type_to_graph_frame2[graph_type].pack(side=tk.TOP, fill=tk.BOTH, expand=True)   
 
     def show_specific_notification_type(self, notification_type):
         if(notification_type == "mosfet"):
@@ -226,7 +260,6 @@ class UI:
         self.graph_button_frame.pack_forget()
         self.notification_frame.pack_forget()
         self.setting_frame.pack(side=tk.TOP, fill=tk.X)
-        print("settings")
 
     def change_settings(self, setting):
         if(setting == "error_length"):
@@ -244,3 +277,54 @@ class UI:
 
     def end_process(self):
         self.is_running = False
+        
+    def create_frames(self):
+        for i, (attr_name, methods) in enumerate(self.attribute_methods.items()):  
+            if (attr_name != "changed_flag"):          
+                current_value = getattr(self.target, methods['getter'])()
+                frame = tk.LabelFrame(self.setting_frame, text=attr_name.capitalize())
+                frame.pack(side=tk.TOP)
+                self.frames[attr_name] = frame
+                if isinstance(current_value, int) or isinstance(current_value, float):
+                    var = tk.StringVar(value=str(current_value))
+                    widget = tk.Entry(frame, textvariable=var)
+                    widget.pack()
+                    widget.bind("<FocusOut>", lambda event, a=attr_name, v=var: self.update_numeric(a, v))
+                    self.entries[attr_name] = var 
+                refresh_btn = tk.Button(frame, text="↻", width=3,
+                                        command=lambda a=attr_name: self.refresh_value(a))
+                refresh_btn.pack()
+                
+    def update_numeric(self, attr_name, string_var):
+        try:
+            value = string_var.get()
+            current_value = getattr(self.target, self.attribute_methods[attr_name]['getter'])()
+            value_type = type(current_value)
+            if value_type == int:
+                value = int(value)
+            elif value_type == float:
+                value = float(value) 
+            self.update_attribute(attr_name, value)
+        except ValueError:
+            print(f"Invalid numeric value for {attr_name}")
+            # Reset to original value
+            string_var.set(str(getattr(self.target, self.attribute_methods[attr_name]['getter'])()))
+            
+    def refresh_value(self, attr_name):
+        try:
+            getter_method = self.attribute_methods[attr_name]['getter']
+            current_value = getattr(self.target, getter_method)()
+            
+            if isinstance(current_value, bool):
+                self.entries[attr_name].set(current_value)
+            else:
+                self.entries[attr_name].set(str(current_value))
+        except Exception as e:
+            print(f"Error refreshing {attr_name}: {e}")
+            
+    def update_attribute(self, attr_name, value):
+        try:
+            setter_method = self.attribute_methods[attr_name]['setter']
+            getattr(self.target, setter_method)(value)          
+        except Exception as e:
+            print(f"Error updating {attr_name}: {e}")

@@ -1,6 +1,7 @@
 import threading
 import random
 import time
+import numpy as np
 
 class Validator(threading.Thread):
 
@@ -8,13 +9,22 @@ class Validator(threading.Thread):
         super().__init__()
         self.queue_map = queue
         self.is_running = True
-        self.std_for_temperature = 10
-        self.std_for_pressure = 15
-        self.std_for_voltage = 2
-        
+        self.noise_level_temperature = 0.5
+        self.noise_level_pressure = 0.75
+        self.noise_level_voltage = 0.75
+        self.initial_temp_1 = 40
+        self.initial_temp_2 = 40
+        self.initial_temp_3 = 40
+        self.initial_temp_4 = 40
+        self.initial_volt1 = 2
+        self.initial_volt2 = 2
+        self.initial_volt3 = 2
+        self.initial_volt4 = 2
+        self.initial_pressure = 70
+    
     def run(self):
         while(self.is_running):
-            incoming_data = "t1," + str(round(max(30, min(random.normalvariate(70, self.std_for_temperature),  80)))) + ",v1," + str(round(max(0, min(random.normalvariate(2, self.std_for_voltage),  5)))) + ",t2," + str(round(max(30, min(random.normalvariate(50, self.std_for_temperature),  80)))) + ",v2," + str(round(max(0, min(random.normalvariate(2, self.std_for_voltage),  5)))) + ",t3," + str(round(max(30, min(random.normalvariate(50, self.std_for_temperature),  80))))+ ",v3," + str(round(max(0, min(random.normalvariate(2, self.std_for_voltage),  5)))) + ",t4," + str(round(max(30, min(random.normalvariate(50, self.std_for_temperature),  80)))) + ",v4," + str(round(max(0, min(random.normalvariate(2, self.std_for_voltage),  5)))) + ",p," + str(round(max(50, min(random.normalvariate(75, self.std_for_pressure),  110))))  
+            incoming_data = "t1," + str(self.random_walk(self.initial_temp_1,self.noise_level_temperature))   + ",v1," + str(self.random_walk_volt(self.initial_volt1,self.noise_level_voltage)) + ",t2," + str(self.random_walk(self.initial_temp_2,self.noise_level_temperature)) + ",v2," + str(self.random_walk_volt(self.initial_volt2,self.noise_level_voltage)) + ",t3," + str(self.random_walk(self.initial_temp_3,self.noise_level_temperature)) + ",v3," + str(self.random_walk_volt(self.initial_volt3,self.noise_level_voltage)) + ",t4," + str(self.random_walk(self.initial_temp_4,self.noise_level_temperature)) + ",v4," + str(self.random_walk_volt(self.initial_volt4,self.noise_level_voltage)) + ",p," + str(self.random_walk(self.initial_pressure,self.noise_level_pressure))  
             self.validate_data(incoming_data)
             time.sleep(0.5)
         print("thread ended")
@@ -49,4 +59,30 @@ class Validator(threading.Thread):
             return False
         
     def end_thread(self):
-        self.is_running = False     
+        self.is_running = False 
+        
+    def random_walk(self, current_value, noise_level):
+        step = np.random.normal(0, noise_level)
+        current_value += step
+        return current_value
+    
+    def random_walk_volt(self, current_value, noise_level):
+        step = np.random.normal(0,noise_level)
+        if (current_value >= 4):
+            if (step > 0):
+                chance = np.random.randint(0,100)
+                if (chance > 70):
+                    current_value += step
+            else:
+                current_value += step            
+        elif (current_value <= 0):
+            if (step < 0):
+                chance = np.random.randint(0,100)
+                if (chance > 70):
+                    current_value += step
+            else:
+                current_value += step
+        else:
+            current_value += step
+        return current_value
+        

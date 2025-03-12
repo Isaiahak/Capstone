@@ -1,5 +1,5 @@
 class Configuration():
-    def __new__(cls, monitor_length, error_length, ejection_time, consistent_length, temperature_diff, volt_diff, timer):
+    def __new__(cls, monitor_length, error_length, ejection_time, consistent_length, temp_diff, volt_diff, timer):
         if not hasattr(cls,'instance'):
             cls.instance = super(Configuration,cls).__new__(cls)
             return cls.instance
@@ -43,15 +43,15 @@ class Configuration():
 
     def set_temp_diff(self, value):
         self.value_changed()
-        self.temperture_diff = value
+        self.temp_diff = value
 
     def get_temp_diff(self):
-        return self.temperture_diff    
+        return self.temp_diff    
         
     def set_volt_diff(self, value):
         self.value_changed()
         self.volt_diff = value
-
+        
     def get_volt_diff(self):
         return self.volt_diff       
     

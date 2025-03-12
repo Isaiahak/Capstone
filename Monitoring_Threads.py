@@ -44,7 +44,7 @@ class Monitor_thread(threading.Thread):
         self.prev_consistent_length = configuration.get_consistent_length()
         self.monitor_length = self.configuration.get_monitor_length()
         self.error_length = self.configuration.get_error_length()
-        self.consistency_length = self.configuration.get_consistency_length()
+        self.consistency_length = self.configuration.get_consistent_length()
         self.ejection_time = self.configuration.get_ejection_time()
         
     def run(self):
@@ -173,11 +173,12 @@ class Monitor_thread(threading.Thread):
     
     def consistency_check(self):
         if (len(self.consistency_values) > 1):
+            difference = 0
             if (self.datatype == "temperature"):
                 difference = self.configuration.get_temp_diff()
             elif (self.datatype == "voltage"):
                 difference = self.configuration.get_volt_diff()
-            if (self.consistency_values[len(self.consistency_values)] - self.consistency_values[len(self.consistency_values - 1)] > difference):
+            if (self.consistency_values[len(self.consistency_values) - 1] - self.consistency_values[len(self.consistency_values ) - 2] > difference):
                 self.inconsistency_counter = self.inconsistency_counter + 1
                 self.inconsistent_counter = self.inconsistent_counter + 1  
             else: 

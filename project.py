@@ -30,7 +30,7 @@ queue_map = {"v1" : battery_1_volt_queue,"v2" : battery_2_volt_queue, "v3" : bat
              "t1" : battery_1_temp_queue, "t2" : battery_2_temp_queue, "t3" : battery_3_temp_queue, "t4" : battery_4_temp_queue,
              "p" : pressure_queue} 
 
-configuration = Configuration()
+configuration = Configuration(monitor_length=1000, error_length=200, ejection_time=600, consistent_length=200, temp_diff=2, volt_diff=0.5, timer=0.5)
 #-----------------------------------------------#application setup#-----------------------------------------------------------#      
 def read_sensor_info(file_path):
         sensor_info = [None,None,None]
@@ -99,9 +99,10 @@ if __name__ == "__main__":
     print("validator thread started")
     root = tk.Tk()
     root.title("Battery Monitor")
-    root.geometry("1200x1000")  
-    root.resizable(False, False) 
+    root.geometry("1400x1000")  
+    root.resizable(True, True) 
     app = UI(root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue, notification_queue, configuration)
     root.protocol("WM_DELETE_WINDOW", on_closing)
-    root.mainloop()
     print("started GUI")
+    root.mainloop()
+    
