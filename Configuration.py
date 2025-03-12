@@ -69,6 +69,7 @@ class Configuration():
         return self.changed_value_flag
 
     def value_changed(self):
+        print('change!')
         self.changed_value_flag = True
 
 

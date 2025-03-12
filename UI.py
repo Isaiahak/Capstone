@@ -18,7 +18,21 @@ class UI:
         self.frames = {}
         self.entries = {}
         self.attribute_methods = self._discover_attribute_methods()
-      
+        self.configuration_discriptions = {"monitor_length" : "The amount of values held onto in the monitor.",
+                                        "error_length" : "The amount of error values held onto in the monitor.", 
+                                        "ejection_time":"The time waited until battery ejection.", 
+                                        "consistent_length":"The amount of values with large differences we monitor.",
+                                        "temp_diff":"The difference in temperature deemed to large for normal operation.",
+                                        "volt_diff":"The difference in voltage deemed to large for normal operation.",
+                                        "timer": "The time inbetween value monitoring (in seconds)."}
+        self.configuration_limits = {"monitor_length" :[400,800],                                     
+                                     "error_length" : [100,200], 
+                                        "ejection_time":[300,600],                              
+                                        "consistent_length":[100,200],
+                                        "temp_diff":[0.5,2],
+                                        "volt_diff":[0.5,1],
+                                        "timer": [0.1,0.5]}
+
         # frame for all buttons
         self.buttons_frame = tk.Frame(self.main_frame, bg="gray", width=1200, height=100)
         self.buttons_frame.pack(side=tk.TOP, fill=tk.X)
@@ -47,19 +61,9 @@ class UI:
                           if not attr.startswith('_') and not callable(getattr(self.configuration, attr)) and not attr == "changed_value_flag"}
         
         self.create_frames()
-        '''
-        self.monitor_length_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
-        self.monitor_length_value = tk.Text(self.monitor_length_frame).pack(side="left")
-        tk.Button(self.monitor_length_frame, text="monitor length",command= lambda s = "monitor length": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
         
-        self.error_length_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
-        self.error_length_value = tk.Text(self.error_length_frame).pack(side="left")
-        tk.Button(self.error_length_frame, text="error length",command= lambda s = "error length": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
         
-        self.ejection_time_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=333).pack(side=tk.TOP)
-        self.ejection_time_value = tk.Text(self.ejection_time_frame).pack(side="left")
-        tk.Button(self.ejection_time_frame, text="ejection time",command= lambda s = "ejection time": self.change_settings(s), bg="lightgray").pack(side="left",pady=10, padx=50)
-        '''
+
         # frame for type buttons
         self.button_type_frame = tk.Frame(self.buttons_frame, bg="gray", width=1200, height=50)
         self.button_type_frame.pack(side=tk.TOP)
@@ -111,7 +115,7 @@ class UI:
                                           "voltage":self.volt_graph_frame2,
                                           "pressure":self.pressure_graph_frame2}
 
-        self.graph_display = {self.pressure_graph_frame : len(self.pressure_graph_frame.winfo_children()),self.volt_graph_frame : len(self.volt_graph_frame.winfo_children()), self.temp_graph_frame : len(self.temp_graph_frame.winfo_children()),
+        self.graph_display = {self.pressure_graph_frame : len(self.pressure_graph_frame.winfo_children()), self.volt_graph_frame : len(self.volt_graph_frame.winfo_children()), self.temp_graph_frame : len(self.temp_graph_frame.winfo_children()),
                                 self.pressure_graph_frame2 : len(self.pressure_graph_frame2.winfo_children()), self.volt_graph_frame2 : len(self.volt_graph_frame2.winfo_children()), self.temp_graph_frame2 : len(self.temp_graph_frame2.winfo_children())}
         
         #generates a button for each graph type
@@ -152,7 +156,6 @@ class UI:
         self.update_graph()
     
     def _discover_attribute_methods(self):
-        """Find all getter/setter method pairs in the target class"""
         attribute_methods = {}
         
         # Get all methods of the target class
@@ -282,19 +285,19 @@ class UI:
         for i, (attr_name, methods) in enumerate(self.attribute_methods.items()):  
             if (attr_name != "changed_flag"):          
                 current_value = getattr(self.target, methods['getter'])()
-                frame = tk.LabelFrame(self.setting_frame, text=attr_name.capitalize())
-                frame.pack(side=tk.TOP)
+                configuration_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=50)
+                configuration_frame.pack(side=tk.TOP)
+                discription_frame = tk.Label(configuration_frame, text=self.configuration_discriptions[attr_name], font=("Arial", 16))
+                discription_frame.pack(side=tk.LEFT)
+                frame = tk.Text(configuration_frame, width=100, height=20)
+                frame.pack(side=tk.LEFT)           
                 self.frames[attr_name] = frame
                 if isinstance(current_value, int) or isinstance(current_value, float):
                     var = tk.StringVar(value=str(current_value))
-                    widget = tk.Entry(frame, textvariable=var)
-                    widget.pack()
-                    widget.bind("<FocusOut>", lambda event, a=attr_name, v=var: self.update_numeric(a, v))
+                    widget = tk.Button(configuration_frame,text="submit", command=lambda a=attr_name, v=var: self.update_numeric(a, v), bg="lightgray")
+                    widget.pack(side=tk.LEFT)
                     self.entries[attr_name] = var 
-                refresh_btn = tk.Button(frame, text="↻", width=3,
-                                        command=lambda a=attr_name: self.refresh_value(a))
-                refresh_btn.pack()
-                
+                            
     def update_numeric(self, attr_name, string_var):
         try:
             value = string_var.get()
@@ -303,24 +306,17 @@ class UI:
             if value_type == int:
                 value = int(value)
             elif value_type == float:
-                value = float(value) 
-            self.update_attribute(attr_name, value)
+                value = float(value)
+            min_value = self.configuration_limits[attr_name][0]
+            max_value = self.configuration_limits[attr_name][1]
+            if(value >= min_value and value <= max_value):
+                self.update_attribute(attr_name, value)
+            else:
+                self.frames[attr_name].insert(tk.END, "invalid input")
         except ValueError:
             print(f"Invalid numeric value for {attr_name}")
             # Reset to original value
             string_var.set(str(getattr(self.target, self.attribute_methods[attr_name]['getter'])()))
-            
-    def refresh_value(self, attr_name):
-        try:
-            getter_method = self.attribute_methods[attr_name]['getter']
-            current_value = getattr(self.target, getter_method)()
-            
-            if isinstance(current_value, bool):
-                self.entries[attr_name].set(current_value)
-            else:
-                self.entries[attr_name].set(str(current_value))
-        except Exception as e:
-            print(f"Error refreshing {attr_name}: {e}")
             
     def update_attribute(self, attr_name, value):
         try:
