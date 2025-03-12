@@ -18,13 +18,13 @@ class UI:
         self.frames = {}
         self.entries = {}
         self.attribute_methods = self._discover_attribute_methods()
-        self.configuration_discriptions = {"monitor_length" : "The amount of values held onto in the monitor.",
-                                        "error_length" : "The amount of error values held onto in the monitor.", 
-                                        "ejection_time":"The time waited until battery ejection.", 
-                                        "consistent_length":"The amount of values with large differences we monitor.",
-                                        "temp_diff":"The difference in temperature deemed to large for normal operation.",
-                                        "volt_diff":"The difference in voltage deemed to large for normal operation.",
-                                        "timer": "The time inbetween value monitoring (in seconds)."}
+        self.configuration_discriptions = {"monitor_length" : "The amount of values held onto in the monitor. (400-800)",
+                                        "error_length" : "The amount of error values held onto in the monitor. (100-200)", 
+                                        "ejection_time":"The time waited until battery ejection. (300-600 seconds)", 
+                                        "consistent_length":"The amount of values with large differences we monitor. (100-200)",
+                                        "temp_diff":"The difference in temperature deemed to large for normal operation. (0.5-2 degrees C)",
+                                        "volt_diff":"The difference in voltage deemed to large for normal operation. (0.5-1 voltage)",
+                                        "timer": "The time inbetween value monitoring. (0.1-0.5 seconds)"}
         self.configuration_limits = {"monitor_length" :[400,800],                                     
                                      "error_length" : [100,200], 
                                         "ejection_time":[300,600],                              
@@ -288,14 +288,16 @@ class UI:
                 configuration_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=50)
                 configuration_frame.pack(side=tk.TOP)
                 discription_frame = tk.Label(configuration_frame, text=self.configuration_discriptions[attr_name], font=("Arial", 16))
-                discription_frame.pack(side=tk.LEFT)
-                frame = tk.Text(configuration_frame, width=100, height=20)
-                frame.pack(side=tk.LEFT)           
+                discription_frame.pack(side=tk.TOP)
+                submit_frame = tk.Frame(configuration_frame)
+                submit_frame.pack(side=tk.TOP)
+                frame = tk.Text(configuration_frame, width=10, height=2)
+                frame.pack()           
                 self.frames[attr_name] = frame
                 if isinstance(current_value, int) or isinstance(current_value, float):
                     var = tk.StringVar(value=str(current_value))
                     widget = tk.Button(configuration_frame,text="submit", command=lambda a=attr_name, v=var: self.update_numeric(a, v), bg="lightgray")
-                    widget.pack(side=tk.LEFT)
+                    widget.pack()
                     self.entries[attr_name] = var 
                             
     def update_numeric(self, attr_name, string_var):
@@ -321,6 +323,9 @@ class UI:
     def update_attribute(self, attr_name, value):
         try:
             setter_method = self.attribute_methods[attr_name]['setter']
-            getattr(self.target, setter_method)(value)          
+            getattr(self.target, setter_method)(value) 
+            update_notification = tk.Toplevel(self.root)
+            update_notification.title = "Update"
+            tk.Label(update_notification, text="you have updated :" + attr_name).pack(padx=20,pady=20)        
         except Exception as e:
             print(f"Error updating {attr_name}: {e}")
