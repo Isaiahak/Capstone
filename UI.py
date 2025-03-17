@@ -282,9 +282,8 @@ class UI:
         self.is_running = False
         
     def create_frames(self):
-        for i, (attr_name, methods) in enumerate(self.attribute_methods.items()):  
+        for i, (attr_name,methods) in enumerate(self.attribute_methods.items()):  
             if (attr_name != "changed_flag"):          
-                current_value = getattr(self.target, methods['getter'])()
                 configuration_frame = tk.Frame(self.setting_frame, bg="gray", width=1200, height=50)
                 configuration_frame.pack(side=tk.TOP)
                 discription_frame = tk.Label(configuration_frame, text=self.configuration_discriptions[attr_name], font=("Arial", 16))
@@ -294,15 +293,12 @@ class UI:
                 frame = tk.Text(configuration_frame, width=10, height=2)
                 frame.pack()           
                 self.frames[attr_name] = frame
-                if isinstance(current_value, int) or isinstance(current_value, float):
-                    var = tk.StringVar(value=str(current_value))
-                    widget = tk.Button(configuration_frame,text="submit", command=lambda a=attr_name, v=var: self.update_numeric(a, v), bg="lightgray")
-                    widget.pack()
-                    self.entries[attr_name] = var 
+                widget = tk.Button(configuration_frame,text="submit", command=lambda a=attr_name: self.update_numeric(a, self.frames[a].get("1.0", tk.END)), bg="lightgray")
+                widget.pack() 
                             
     def update_numeric(self, attr_name, string_var):
         try:
-            value = string_var.get()
+            value = string_var
             current_value = getattr(self.target, self.attribute_methods[attr_name]['getter'])()
             value_type = type(current_value)
             if value_type == int:
@@ -314,11 +310,12 @@ class UI:
             if(value >= min_value and value <= max_value):
                 self.update_attribute(attr_name, value)
             else:
-                self.frames[attr_name].insert(tk.END, "invalid input")
+                update_notification = tk.Toplevel(self.root)
+                update_notification.title = "Update"
+                tk.Label(update_notification, text="invalid input" + attr_name).pack(padx=20,pady=20)  
         except ValueError:
             print(f"Invalid numeric value for {attr_name}")
-            # Reset to original value
-            string_var.set(str(getattr(self.target, self.attribute_methods[attr_name]['getter'])()))
+            
             
     def update_attribute(self, attr_name, value):
         try:
