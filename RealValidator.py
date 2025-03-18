@@ -2,6 +2,8 @@ import threading
 import random
 import time
 import numpy as np
+import serial
+from Connector import Connector
 
 class RealValidator:
     def __init__(self, queue):
@@ -49,4 +51,4 @@ class RealValidator:
         self.is_running = False 
 
     def receive_data(self):
-        pass
+        return Connector.recieve_data()

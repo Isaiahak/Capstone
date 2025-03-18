@@ -6,6 +6,7 @@ from Notifications import Notifications
 from datetime import datetime
 matplotlib.use('TkAgg')
 import csv
+from Connector import Connector
 
 
 class Monitor_thread(threading.Thread):
@@ -76,7 +77,7 @@ class Monitor_thread(threading.Thread):
         #declares the battery being monitored in a safe state and turns mosfet back on once its been done doesnt have to occur again which is what the flag represents
         if (self.value_state == "safe" and self.safe_flag == False):
             self.safe_flag = True
-            # turn off mosfet
+            self.set_mosfet()
             self.notification = self.monitor_id +" mostfet turned off : Time = " + datetime.now().isoformat()
             self.notification_queue.put(Notifications(self.notification, "mosfet"))
             self.safety_state = None
@@ -136,7 +137,7 @@ class Monitor_thread(threading.Thread):
                         self.update_sensor_states()
                     else:
                         self.safety_state = "mosfet"
-                        # turn on mosfet
+                        self.set_mosfet()
                         self.notification = self.monitor_id +" mosfet triggered : Time = " + datetime.now().isoformat()
                         self.notification_queue.put(Notifications(self.notification, "mosfet"))
                         self.ejection_timer = time.time()
@@ -147,16 +148,14 @@ class Monitor_thread(threading.Thread):
                     if ((time.time() - self.ejection_timer) < self.ejection_time):
                         self.ejection_timer_notification_counter = self.ejection_timer_notification_counter + 1
                         if(self.ejection_timer_notification_counter == 120):
-                        #notify UI with the time spend in the error state
                             self.notification = self.monitor_id + " ejection will commence in " + str(self.ejection_time - (time.time() - self.ejection_timer)) + " : Time = " + datetime.now().isoformat()
                             self.notification_queue.put(Notifications(self.notification,"ejection"))
                             self.ejection_timer_notification_counter = 0
                             self.add_notification()
                     if ((time.time() - self.ejection_timer) >= self.ejection_time):
-                        #eject
+                        self.eject_battery()
                         self.notification = self.monitor_id +" eject triggered : Time = " + datetime.now().isoformat()
                         self.notification_queue.put(Notifications(self.notification, "ejection"))
-                        # only if we eject set state to eject
                         self.safety_state = "eject"
                         self.add_notification()
                         self.update_sensor_states()
@@ -247,7 +246,14 @@ class Monitor_thread(threading.Thread):
                 if (self.ejection_time < self.ejection_timer):
                     self.ejection_timer = self.ejection_time - int(self.ejection_time * 0.3)
             self.prev_ejection_time = self.ejection_time
-       
+
+    def set_mosfet(self):
+        Connector.set_mosfet(self.safe_flag,self.monitor_id)
+        pass
+
+    def eject_battery(self):
+        Connector.eject_battery(self.monitor_id)
+
         
 
 
