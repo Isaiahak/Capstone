@@ -6,7 +6,7 @@ from Notifications import Notifications
 from datetime import datetime
 matplotlib.use('TkAgg')
 import csv
-from Connector import Connector
+#from Connector import Connector
 
 
 class Monitor_thread(threading.Thread):

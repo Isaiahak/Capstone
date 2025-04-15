@@ -4,7 +4,8 @@ from UI import UI
 from Validator import Validator
 from Monitoring_Threads import Monitor_thread
 import csv
-from Configuration import Configuration 
+from Configuration import Configuration
+from UI import testUI 
 #-------------------------------------------------Global-Variables---------------------------------------------------------------------------#
 battery_1_volt_queue = queue.Queue()
 battery_1_temp_queue = queue.Queue()
@@ -102,6 +103,7 @@ if __name__ == "__main__":
     root.geometry("1400x1000")  
     root.resizable(True, True) 
     app = UI(root,temp1_graph_queue, temp2_graph_queue, temp3_graph_queue, temp4_graph_queue, volt1_graph_queue, volt2_graph_queue, volt3_graph_queue, volt4_graph_queue, pressure_graph_queue, notification_queue, configuration)
+
     root.protocol("WM_DELETE_WINDOW", on_closing)
     print("started GUI")
     root.mainloop()
