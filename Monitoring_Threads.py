@@ -208,7 +208,7 @@ class Monitor_thread(threading.Thread):
     def add_notification(self):
         current_time = datetime.now().isoformat()
 
-        with open("notification_log.csv", mode="a", newline='') as file:
+        with open("application_data/notification_logs.csv", mode="a", newline='') as file:
             csv_writer = csv.writer(file)
             csv_writer.writerow([self.monitor_id,self.notification,current_time])
 
@@ -247,13 +247,14 @@ class Monitor_thread(threading.Thread):
                     self.ejection_timer = self.ejection_time - int(self.ejection_time * 0.3)
             self.prev_ejection_time = self.ejection_time
 
+    '''
     def set_mosfet(self):
         Connector.set_mosfet(self.safe_flag,self.monitor_id)
         pass
 
     def eject_battery(self):
         Connector.eject_battery(self.monitor_id)
-
+    '''
         
 
 
