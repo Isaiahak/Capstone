@@ -78,22 +78,22 @@ class Validator(threading.Thread):
                 if np.random.random() < 0.001:
                     self.increment_mode_map[id] = Value.SLOW_INCREMENT
                     self.increment_counter[id] = 0
-                    print("increment")
+                    print("increment" + id)
             case Value.SLOW_INCREMENT:
                 current_value = self.slow_increment(current_value,id)
                 if self.increment_counter[id] >= 20000:
                     if np.random.random() < 0.8:
                         self.increment_mode_map[id] = Value.SLOW_DECREMENT
                         self.decrement_counter[id] = 0
-                        print("decrement")
+                        print("decrement" + id)
                     else:
                         self.increment_mode_map[id] = Value.RANDOM
-                        print("random")
+                        print("random"  + id)
             case Value.SLOW_DECREMENT:
                 current_value = self.slow_decrement(current_value,id)
                 if self.decrement_counter[id] >= 10000:
                     self.increment_mode_map[id] = Value.RANDOM
-                    print("random")
+                    print("random" + id)
             case DEFAULT:
                 current_mode = Value.RANDOM
         return current_value

@@ -49,7 +49,7 @@ class Graph_Frame(tk.Frame):
             self.ax.set_xlabel("Time (Seconds)", fontdict=text_props)
             self.ax.set_ylabel("Temperature (Degree C)", fontdict=text_props)
             self.ax.axhline(y=30, color=self.colors.get("warning", "red"), linestyle=':', label="Min = 30")
-            self.ax.axhline(y=70, color=self.colors.get("danger", "red"), linestyle=':', label="Max = 70")
+            self.ax.axhline(y=70, color=self.colors.get("danger", "red"), linestyle=':', label="Max = 60")
         elif data_type == "pressure":
             self.ax.set_xlabel("Time (Seconds)", fontdict=text_props)
             self.ax.set_ylabel("Pressure (PSI?)", fontdict=text_props)

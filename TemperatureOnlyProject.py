@@ -46,19 +46,19 @@ def on_closing():
 if __name__ == "__main__":
 
     temp1_values  = read_sensor_info("application_data/temp1.csv")
-    b1_temp_thread = Monitor_thread(battery_1_temp_queue, temp1_graph_queue, notification_queue, "temperature", 70,30, "temp1",  configuration,  safety_state=temp1_values[1],value_state=temp1_values[2])
+    b1_temp_thread = Monitor_thread(battery_1_temp_queue, temp1_graph_queue, notification_queue, "temperature", 60,30, "temp1",  configuration,  safety_state=temp1_values[1],value_state=temp1_values[2])
     b1_temp_thread.start()   
     print("b1 temp thread started")
     temp2_values  = read_sensor_info("application_data/temp2.csv")
-    b2_temp_thread = Monitor_thread(battery_2_temp_queue, temp2_graph_queue, notification_queue,  "temperature", 70,30, "temp2",  configuration,  safety_state=temp2_values[1],value_state=temp2_values[2])
+    b2_temp_thread = Monitor_thread(battery_2_temp_queue, temp2_graph_queue, notification_queue,  "temperature", 60,30, "temp2",  configuration,  safety_state=temp2_values[1],value_state=temp2_values[2])
     b2_temp_thread.start()
     print("b2 temp thread started")
     temp3_values  = read_sensor_info("application_data/temp3.csv")
-    b3_temp_thread = Monitor_thread(battery_3_temp_queue, temp3_graph_queue, notification_queue, "temperature", 70,30, "temp3", configuration,  safety_state=temp3_values[1],value_state=temp3_values[2])
+    b3_temp_thread = Monitor_thread(battery_3_temp_queue, temp3_graph_queue, notification_queue, "temperature", 60,30, "temp3", configuration,  safety_state=temp3_values[1],value_state=temp3_values[2])
     b3_temp_thread.start()
     print("b4 temp thread started")
     temp4_values  = read_sensor_info("application_data/temp4.csv")
-    b4_temp_thread = Monitor_thread(battery_4_temp_queue, temp4_graph_queue, notification_queue, "temperature", 70,30, "temp4", configuration,  safety_state=temp4_values[1],value_state=temp4_values[2])
+    b4_temp_thread = Monitor_thread(battery_4_temp_queue, temp4_graph_queue, notification_queue, "temperature", 60,30, "temp4", configuration,  safety_state=temp4_values[1],value_state=temp4_values[2])
     b4_temp_thread.start()
     print("b4 temp thread started")
 
