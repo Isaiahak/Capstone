@@ -184,16 +184,14 @@ class UI:
         # Create graph type selection button frames
         self.temp_button_frame = tk.Frame(self.graph_button_frame, bg=self.colors["secondary"], width=1200, height=50)
         
-        # Frame for each graph type
-        self.temp_graph_frame = tk.Frame(self.graph_frame, bg=self.colors["light_bg"], width=1200, height=300)
-        
-        self.temp_graph_frame2 = tk.Frame(self.graph_button_frame, bg=self.colors["light_bg"], width=1200, height=300)
+        # Frame for each graph type - main container for all graphs
+        self.temp_graph_frame = tk.Frame(self.graph_frame, bg=self.colors["light_bg"], width=1200, height=600)
         
         # Setup graph frames
-        self.temp1_graph_frame = Graph_Frame("temp1", "temperature", self.temp_graph_frame, temp1_graph_queue,self.colors, self.fonts)
-        self.temp2_graph_frame = Graph_Frame("temp2", "temperature", self.temp_graph_frame, temp2_graph_queue,self.colors, self.fonts)
-        self.temp3_graph_frame = Graph_Frame("temp3", "temperature", self.temp_graph_frame2, temp3_graph_queue,self.colors, self.fonts)
-        self.temp4_graph_frame = Graph_Frame("temp4", "temperature", self.temp_graph_frame2, temp4_graph_queue,self.colors, self.fonts)
+        self.temp1_graph_frame = Graph_Frame("temp1", "temperature", self.temp_graph_frame, temp1_graph_queue, self.colors, self.fonts)
+        self.temp2_graph_frame = Graph_Frame("temp2", "temperature", self.temp_graph_frame, temp2_graph_queue, self.colors, self.fonts)
+        self.temp3_graph_frame = Graph_Frame("temp3", "temperature", self.temp_graph_frame, temp3_graph_queue, self.colors, self.fonts)
+        self.temp4_graph_frame = Graph_Frame("temp4", "temperature", self.temp_graph_frame, temp4_graph_queue, self.colors, self.fonts)
 
         # Structure to hold the graphs
         self.graph_map = {
@@ -216,15 +214,31 @@ class UI:
             "temperature": self.temp_graph_frame,
         }
         
-        self.graph_type_to_graph_frame2 = {
-            "temperature": self.temp_graph_frame2,
+        # Track active graphs in order of selection
+        self.active_graphs = []
+        
+        # Define layouts for different numbers of active graphs
+        self.layouts = {
+            1: [
+                {"relx": 0, "rely": 0, "relwidth": 1, "relheight": 1}  # Full screen
+            ],
+            2: [
+                {"relx": 0, "rely": 0, "relwidth": 1, "relheight": 0.5},  # Top half
+                {"relx": 0, "rely": 0.5, "relwidth": 1, "relheight": 0.5}  # Bottom half
+            ],
+            3: [
+                {"relx": 0, "rely": 0, "relwidth": 0.5, "relheight": 0.5},      # Top-left
+                {"relx": 0.5, "rely": 0, "relwidth": 0.5, "relheight": 0.5},    # Top-right
+                {"relx": 0, "rely": 0.5, "relwidth": 1, "relheight": 0.5}       # Bottom full
+            ],
+            4: [
+                {"relx": 0, "rely": 0, "relwidth": 0.5, "relheight": 0.5},      # Top-left
+                {"relx": 0.5, "rely": 0, "relwidth": 0.5, "relheight": 0.5},    # Top-right
+                {"relx": 0, "rely": 0.5, "relwidth": 0.5, "relheight": 0.5},    # Bottom-left
+                {"relx": 0.5, "rely": 0.5, "relwidth": 0.5, "relheight": 0.5}   # Bottom-right
+            ]
         }
 
-        self.graph_display = {
-            self.temp_graph_frame: len(self.temp_graph_frame.winfo_children()),
-            self.temp_graph_frame2: len(self.temp_graph_frame2.winfo_children())
-        }
-        
         # Generate main navigation buttons
         self.create_main_navigation()
         
@@ -389,15 +403,50 @@ class UI:
         if(self.is_running):
             self.root.after(350, self.update_graph)
 
+    def update_graph_layout(self):
+        """Update the positions of all active graphs based on the active_graphs list"""
+        # Get the current number of active graphs
+        num_active = len(self.active_graphs)
+        
+        if num_active == 0:
+            return
+        
+        # Get the layout configuration for the current number of active graphs
+        # If we have more than 4 graphs, use the 4-graph layout (maximum supported)
+        layout_config = self.layouts.get(min(num_active, 4), self.layouts[4])
+        
+        # Apply the layout to each active graph
+        for i, graph_id in enumerate(self.active_graphs):
+            if i >= len(layout_config):
+                # If we have more graphs than layout positions, hide extra graphs
+                self.graph_map[graph_id].get_frame().place_forget()
+                continue
+                
+            position = layout_config[i]
+            frame = self.graph_map[graph_id].get_frame()
+            
+            # Position the frame using place geometry manager
+            frame.place(
+                relx=position["relx"],
+                rely=position["rely"],
+                relwidth=position["relwidth"],
+                relheight=position["relheight"]
+            )
+
     def show_graph_buttons(self, graph): 
-        """Toggle graph visibility"""
-        graph_frame = self.graph_map[graph].get_frame()
-        if(self.graph_map[graph].get_state() == False):
-            self.graph_map[graph].set_state(True)  
-            graph_frame.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.BOTH, expand=True)       
-        else:
+        """Toggle graph visibility and update layout"""
+        if graph in self.active_graphs:
+            # Remove graph from active list
+            self.active_graphs.remove(graph)
             self.graph_map[graph].set_state(False)
-            graph_frame.pack_forget()
+            self.graph_map[graph].get_frame().place_forget()
+        else:
+            # Add graph to active list
+            self.active_graphs.append(graph)
+            self.graph_map[graph].set_state(True)
+            
+        # Update layout of all active graphs
+        self.update_graph_layout()
             
     def show_graph_type_buttons(self, graph_type):
         """Show buttons for a specific graph type"""
@@ -412,20 +461,16 @@ class UI:
         # Hide all graph type frames
         for frame in self.graph_type_to_frame.values():
             frame.pack_forget()
-        for frame in self.graph_type_to_graph_frame.values():
-            frame.pack_forget()
-        for frame in self.graph_type_to_graph_frame2.values():
-            frame.pack_forget()
             
-        # Reset all graph states
-        for graph in self.graph_map.values():
+        # Reset active graphs and hide all graph frames
+        self.active_graphs = []
+        for graph_id, graph in self.graph_map.items():
             graph.set_state(False)
-            graph.get_frame().pack_forget()
+            graph.get_frame().place_forget()
             
         # Show selected graph type
         self.graph_type_to_frame[graph_type].pack(side=tk.TOP, fill=tk.X, pady=5)
-        self.graph_type_to_graph_frame[graph_type].pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=5)   
-        self.graph_type_to_graph_frame2[graph_type].pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=5)   
+        self.graph_type_to_graph_frame[graph_type].pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=5)
 
     def show_specific_notification_type(self, notification_type):
         """Show specific notification type"""

@@ -193,7 +193,7 @@ class Monitor_thread(threading.Thread):
     def update_sensor_states(self):
         data = {"safety_state" : self.safety_state,
                 "value_state" : self.value_state}
-        file_path = str(self.monitor_id + ".csv")
+        file_path = str("application_data/" + self.monitor_id + ".csv")
         with open(file_path, mode='r') as file:
             csv_reader = csv.DictReader(file)
             row = list(csv_reader)
@@ -247,14 +247,15 @@ class Monitor_thread(threading.Thread):
                     self.ejection_timer = self.ejection_time - int(self.ejection_time * 0.3)
             self.prev_ejection_time = self.ejection_time
 
-    '''
+
     def set_mosfet(self):
-        Connector.set_mosfet(self.safe_flag,self.monitor_id)
+        #Connector.set_mosfet(self.safe_flag,self.monitor_id)
         pass
 
     def eject_battery(self):
-        Connector.eject_battery(self.monitor_id)
-    '''
+        #Connector.eject_battery(self.monitor_id)
+        pass
+    
         
 
 
